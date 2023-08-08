@@ -198,7 +198,6 @@ def find_files(yt_ids, file_dir, dst_dir=None):
 
     print("Finished sorting files")
 
-"""
     Don't call this file directly from terminal....
 
 if __name__ == '__main__':
@@ -230,4 +229,3 @@ if __name__ == '__main__':
     # print(youtube_ids)
 
     find_files(youtube_ids, args.raw_audio_dir, args.destination_dir)
-"""
