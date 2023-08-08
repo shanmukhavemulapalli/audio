@@ -8,6 +8,7 @@
 
 import csv
 import os
+import subprocess
 from shutil import copyfile
 
 # defaults
@@ -16,20 +17,7 @@ DEFAULT_CSV_DATASET = '../data/unbalanced_train_segments.csv'
 DEFAULT_DEST_DIR = '../output/'
 DEFAULT_FS = 16000
 
-
-def find(class_name, args):
-    print("Finding examples for class " + class_name + " in: " + args.audio_data_dir)
-
-    # construct path to destination dir
-    dst_dir = args.destination_dir if args.destination_dir is not None else DEFAULT_DEST_DIR
-    dst_dir_path = os.path.join(dst_dir, class_name)  # Create directory to store found files
-
-    csv_dataset = args.csv_dataset if args.csv_dataset is not None else DEFAULT_CSV_DATASET
-
-    class_id = get_label_id(class_name, args)  # Get ID corresponding to class_name
-    youtube_ids = get_yt_ids(class_id, csv_dataset)  # Find all YouTube IDs which have class_id as a label
-    find_files(youtube_ids, args.audio_data_dir, dst_dir_path)  # Find all files in audio_data_dir which are in the list of YouTube IDs
-
+# ... (rest of the code remains the same)
 
 def download(class_name, args):
     new_csv = create_csv(class_name, args)
@@ -47,15 +35,24 @@ def download(class_name, args):
         reader = csv.reader(dataset)
 
         for row in reader:
-            # print command for debugging
-            print("ffmpeg -ss " + str(row[1]) + " -t 10 -i $(youtube-dl -f 'bestaudio' -g https://www.youtube.com/watch?v=" +
-                       str(row[0]) + ") -ar " + str(DEFAULT_FS) + " -- \"" + dst_dir + "/" + str(row[0]) + "_" + row[1] + ".wav\"")
-            exitcode = os.system(("ffmpeg -ss " + str(row[1]) + " -t 10 -i $(youtube-dl -f 'bestaudio' -g https://www.youtube.com/watch?v=" +
-                       str(row[0]) + ") -ar " + str(DEFAULT_FS) + " -- \"" + dst_dir + "/" + str(row[0]) + "_" + row[1] + ".wav\""))
-            if(exitcode == 0):
+            # Get youtube-dl output
+            youtube_dl_command = [
+                "youtube-dl", "-f", "bestaudio", "-g", "https://www.youtube.com/watch?v=" + str(row[0])
+            ]
+            youtube_dl_output = subprocess.run(youtube_dl_command, capture_output=True, text=True).stdout.strip()
+
+            # Construct and run ffmpeg command
+            ffmpeg_command = [
+                "ffmpeg", "-ss", str(row[1]), "-t", "10", "-i", youtube_dl_output, "-ar", str(DEFAULT_FS),
+                "--", os.path.join(dst_dir, str(row[0]) + "_" + row[1] + ".wav")
+            ]
+            exitcode = subprocess.run(ffmpeg_command).returncode
+
+            if exitcode == 0:
                 count += 1
-            if(count >= args.limit):
+            if count >= args.limit:
                 break
+
 
 def create_csv(class_name, args):
     """
@@ -198,7 +195,7 @@ def find_files(yt_ids, file_dir, dst_dir=None):
 
     print("Finished sorting files")
 
-    Don't call this file directly from terminal....
+    '''Don't call this file directly from terminal....'''
 
 if __name__ == '__main__':
     import argparse
